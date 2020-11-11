@@ -39,6 +39,14 @@ def get_all_data():
     return df_all
 
 
+# df = pd.read_excel('data/CDX HY Series 35.xlsx', sheet_name='Worksheet')
+# df = pd.read_excel('data/CDX IG Series 35.xlsx', sheet_name='Worksheet')
+# df['Spread'] = df['Spread (bp)'].apply(lambda x: np.nan if str(x).strip() == 'N.A.' else float(x))
+
+# df = pd.read_excel('data/VIX.xlsx', sheet_name='Sheet1')
+# df = df.set_index(df.columns[0])
+
+
 if __name__ == '__main__':
     process_data()
     x = get_2018_data()
