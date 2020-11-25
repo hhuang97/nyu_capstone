@@ -1,7 +1,7 @@
 import pandas as pd
 import pickle
 import numpy as np
-
+import yfinance as yf
 
 _RAW_DATA_FILE = 'data/CLO_Data.xlsx'
 _PICKLED_DATA_FILE = 'data/all_data.p'
@@ -9,6 +9,7 @@ _STRESS_2016 = 'data/stress_2018.p'
 _STRESS_2020 = 'data/stress_2020.p'
 _VIX = 'data/vix.p'
 _CDX_IG = 'data/cdx_ig.p'
+_STOCKS_IG = 'data/stock_ig.p'
 
 
 def process_data():
@@ -67,11 +68,34 @@ def get_cdx_ig():
         df_cdx_ig = pickle.load(f)
     return df_cdx_ig
 
+def write_cdx_stocks(cdx_func, filepath):
+    df = cdx_func()
+    symbols = df.index
+    stocks = {}
+    for _sym in symbols:
+        sym = _sym.strip()
+        try:
+            stock_data = yf.Ticker(sym)
+            stock_df = stock_data.history(period='10y', interval='1d', auto_adjust=False)
+            stocks[sym] = stock_df
+        except:
+            print(sym)
+    with open(filepath, 'wb') as f:
+        pickle.dump(stocks, f)
+
+
+def get_stocks_ig():  # map of symbol -> df
+    # no data for ABXCN, CNQCN, COXENT, ENBCN, TRPCN
+    with open(_STOCKS_IG,'rb') as f:
+        res = pickle.load(f)
+    return res
+
 if __name__ == '__main__':
     # process_data()
     # x = get_2018_data()
     # y = get_2020_data()
     # z = get_all_data()
+    write_cdx_stocks(get_cdx_ig, _STOCKS_IG)
     cdx_process()
     cdxig = get_cdx_ig()
     vix = get_vix()
