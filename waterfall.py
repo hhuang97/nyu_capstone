@@ -13,6 +13,7 @@ from scipy.linalg import cholesky
       #default: default status, true or false,
       #rec: recovery rate, prepay: prepayment rate
       #rating:
+      #spread:
 
     # OC ratio = adjusted carrying value of collateral loan balance/unpaid notional pari-passu .
     # adjusted carrying value = carrying value - excess adjustment
@@ -59,7 +60,7 @@ def CEA(loans,benchmark = 0.07 ):
             ccc_pool += loans[i].par
     return cea
 
-#TODO: array of liabilities, attributes:
+#TODO: array of liabilities objects, attributes:
        # cp: coupon
        # tranche
        # unpaid_n: unpaid notional
