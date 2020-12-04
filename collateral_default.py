@@ -35,8 +35,8 @@ def equity_cov(tickers,startdate,enddate):
     pass
 
 if __name__ == '__main__':
-    #ig0 = get_cdx_ig()
-    #n = len(ig0.index) # no correlation
-    #ig = default_indicators(np.eye(n)) #missing covariance matrix
+    ig0 = get_cdx_ig()
+    n = len(ig0.index) # no correlation
+    ig = default_indicators(np.eye(n)) #missing covariance matrix
 
 

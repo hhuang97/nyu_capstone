@@ -39,7 +39,7 @@ def sort_loan_rating(loans):
     pass
 
 def total_notional(loans):
-    return np.sum([loan.par for loan in loans])
+    return np.sum([loan.pv for loan in loans])
 
 def CCC_ratio(loans):
     ccc = np.array([loan for loan in loans if 'C' in loan.rating])
@@ -76,7 +76,7 @@ def oc_ratio(loans,liabilities):
     '''
     adjusted_cv = np.sum(list(map(carrying_value,loans))) - CEA(loans)
     unpaid_ns = np.array([i.unpaid_n for i in liabilities])
-    unpaid_ns_paripassu = np.cumsum(unpaid_ns[:6]) #excluding equity
+    unpaid_ns_paripassu = np.cumsum(unpaid_ns[:-1]) #excluding equity
     return adjusted_cv/unpaid_ns_paripassu
 
 

@@ -4,4 +4,7 @@ import os
 import numpy as np
 from scipy.stats import norm
 from scipy.linalg import cholesky
+from CLOtrancheClass import clotranche
+from LoanClass import loan
+
 
