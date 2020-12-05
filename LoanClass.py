@@ -35,8 +35,9 @@ class loan(object):
 
     def set_default(self):
         self.default = True
-        self.cv *= self.rec
-        self.pv *=self.rec
+        self.semi_annual_pay = 0.
+        self.cv *= self.rec # if default, just set as the original * recovery rate.
+        self.pv = 0.  # easier to set pv as 0, then no interest paid after the loan defaults.
 
     # def set_rv(self,rv):
     #     self.rv = rv
@@ -52,23 +53,26 @@ class collateral(object):
         self.loans = loans  #numpy array of loans
         self.ccc_ratio = CCC_ratio(loans)
         self.total_notional = total_notional(loans)
-        self.reserve = 0
+        self.p_reserve = 0. # principal paid by loans and potential recoveries
+        self.i_reserve = 0. # received interest later used by interest waterfall payment
 
     def build_reserve(self):
         #semi-annual payment, assuming all loans are paid at exactly same time
         interest_pay = 0
         notional_pay = 0
         for loan in self.loans:
-            interest_pay += loan.pv*loan.spread
-            notional_payment = loan.semi_annual_pay * (1+loan.prepay)
-            if loan.pv <= notional_payment:
-                notional_pay += loan.pv
-                loan.pv, loan.cv = 0., 0.
-            else:
-                notional_pay += notional_payment
-                loan.pv -= notional_payment
-                loan.set_cv()
-        self.reserve = self.reserve + interest_pay + notional_pay
+            if loan.default == False:
+                interest_pay += loan.pv*loan.spread
+                notional_payment = loan.semi_annual_pay * (1+loan.prepay)
+                if loan.pv <= notional_payment:
+                    notional_pay += loan.pv
+                    loan.pv, loan.cv = 0., 0.
+                else:
+                    notional_pay += notional_payment
+                    loan.pv -= notional_payment
+                    loan.set_cv()
+        self.p_reserve += notional_pay
+        self.i_reserve += interest_pay
 
     def loan_downgrading(self,dg_file):
         # downgrading_file, dictionary, loan issuer: new rating
@@ -83,7 +87,7 @@ class collateral(object):
             if loan.issuer in default_events.keys():
                 loan.set_default() # loans status change to default,
                                    # carrying value and par value are all scaled down.
-
+                self.p_reserve += loan.cv #potential recoveries
         # adjust carrying value.
 
     def set_ccc_ratio(self):

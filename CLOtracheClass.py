@@ -36,21 +36,54 @@ class clo(object):
     def default_happen(self,default_events):
         self.loans.default_adjust(default_events)
 
+
     def pay_clo_interest(self):
-        #TODO: not finished 
+        # one-time payment, run this function every 6 month,
+        # use received interest to pay down the interest waterfall
         self.age+= self.payperiod
-        #check oc ratio test.
-        test_results = oc_ratio(self.loans,self.tranches)
-        for i in range(len(self.tranches)-1):
-            if test_results[i] < self.ocbar[i]:
-                # breach the test, pay
+        test_results, unpaid_paripassu_p = oc_ratio(self.loans,self.tranches)#check oc ratio test.
+
+        i=0
+        #check if have enough cash reserve from loan collateral
+        #check if the senior coverage test is in compliance
+        while (self.loans.i_reserve >0) and (i <len(self.tranches)):
+            # for the most senior tranche AAA, we don't need to check oc test
+            scheduled_interest = self.tranches[i].unpaid_n * self.tranches[i].cp
+
+            if i>1 and test_results[i-1] < self.ocbar[i-1]:
+                j = 0 #starting from AAA
+                required_principal_payment =  unpaid_paripassu_p[i-1] - \
+                    test_results[i-1]*unpaid_paripassu_p[i-1]/self.ocbar[i-1]
+
+                while (required_principal_payment >0) and (required_principal_payment <= self.loans.i_reserve):
+                    if j == i:
+                        break
+                    else: #be able to pass the test
+                        k =min(required_principal_payment, self.tranches[j].unpaid_n)
+                        self.tranches[j].pay_notional(k)
+                        self.loans.i_reserve -= k
+                        required_principal_payment -= k
+
+                    j+=1
+
+            if self.loans.i_reserve <= scheduled_interest:
+                self.loans.i_reserve = 0. # then the while loop breaks
+                self.tranches[i].pay_interest(self.loans.i_reserve)
+            else:
+                self.loans.i_reserve -= scheduled_interest
+                self.tranches[i].pay_interest(scheduled_interest)
+
+            i+=1
+
 
     def pay_clo_principal(self):
         #TODO: not finished
-        for tranche in self.tranches:
-            tranche.pay_notional(min(tranche.unpaid_n,tranche.note,self.loans.total_notional))
-
-
+        j = 0
+        while self.loans.p_reserve > 0 and j < len(self.tranches):
+            k = min(self.tranches[j].unpaid_n, self.loans.p_reserve, self.tranches[j].note)
+            self.tranches[j].pay_notional(k)
+            self.loans.p_reserve -= k
+            j += 1
 
 
 

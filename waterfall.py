@@ -77,6 +77,7 @@ def oc_ratio(loans,liabilities):
     adjusted_cv = np.sum(list(map(carrying_value,loans))) - CEA(loans)
     unpaid_ns = np.array([i.unpaid_n for i in liabilities])
     unpaid_ns_paripassu = np.cumsum(unpaid_ns[:-1]) #excluding equity
-    return adjusted_cv/unpaid_ns_paripassu
+    return adjusted_cv/unpaid_ns_paripassu, unpaid_ns_paripassu
+
 
 
