@@ -12,3 +12,7 @@ cdx_ig_names = ['AEP', 'AXP', 'AIG', 'AMGN', 'ARW', 'AGO', 'T',
        'UNH', 'VLO', 'VZ', 'VIAC', 'WMT', 'WY', 'WHR',
        'XL']
 
+cdx_hy_names = ['APA', 'CAR', 'AVP', 'F', 'HCA', 'KBH', 'KHC',
+       'LEN', 'NWL', 'JWN', 'NRG', 'PBI', 'THC', 'GPS',
+       'TOL', 'UHS', 'XRXCRP'] #17 names
+

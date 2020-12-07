@@ -23,7 +23,10 @@ from scipy.linalg import cholesky
 
 def carrying_value(loan):
     if loan.defualt == False:
-        loan.cv = loan.pv if loan.mp >=.8 else loan.cv = loan.pv*loan.mp
+        if loan.mp >= .8:
+            loan.cv = loan.pv
+        else:
+            loan.cv = loan.pv * loan.mp
     else:
         loan.cv = loan.pv*loan.rv
 

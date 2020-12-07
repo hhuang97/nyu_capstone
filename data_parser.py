@@ -10,6 +10,7 @@ _STRESS_2016 = 'data/stress_2018.p'
 _STRESS_2020 = 'data/stress_2020.p'
 _VIX = 'data/vix.p'
 _CDX_IG = 'data/cdx_ig.p'
+_CDX_HY = 'data/cdx_hy.p'
 _STOCKS_IG = 'data/stock_ig.p'
 
 
@@ -44,6 +45,24 @@ def get_all_data():
         df_all = pickle.load(f)
     return df_all
 
+
+def cdx_hy_process():
+    df = pd.read_excel('data/CDX HY Series 35.xlsx', sheet_name='Worksheet')
+    #df = pd.read_excel('data/CDX IG Series 35.xlsx', sheet_name='Worksheet')
+    #df['Spread'] = df['Spread (bp)'].apply(lambda x: np.nan if str(x).strip() == 'N.A.' else float(x))
+    #exclude na terms
+    df_cdx_hy = df[df['Spread (bp)']!='N.A.']
+    #df_vix = pd.read_excel('data/VIX.xlsx', sheet_name='Sheet1')
+    df_cdx_hy = df_cdx_hy.set_index(df_cdx_hy.columns[2])
+    #df_vix = df_vix.set_index(df_vix.columns[0])
+
+    #with open(_VIX,'wb') as f:
+        #pickle.dump(df_vix,f)
+
+    with open(_CDX_HY,'wb') as f:
+        pickle.dump(df_cdx_hy,f)
+
+
 def cdx_process():
     # df = pd.read_excel('data/CDX HY Series 35.xlsx', sheet_name='Worksheet')
     df = pd.read_excel('data/CDX IG Series 35.xlsx', sheet_name='Worksheet')
@@ -65,17 +84,6 @@ def get_vix():
         df_vix = pickle.load(f)
     return df_vix
 
-def get_cdx_ig():
-    with open(_CDX_IG,'rb') as f:
-        df_cdx_ig = pickle.load(f)
-    return df_cdx_ig
-
-    with open(_VIX,'wb') as f:
-        pickle.dump(df_vix,f)
-
-    with open(_CDX_IG,'wb') as f:
-        pickle.dump(df_cdx_ig,f)
-
 def get_vix():
     with open(_VIX,'rb') as f:
         df_vix = pickle.load(f)
@@ -85,6 +93,11 @@ def get_cdx_ig():
     with open(_CDX_IG,'rb') as f:
         df_cdx_ig = pickle.load(f)
     return df_cdx_ig
+
+def get_cdx_hy():
+    with open(_CDX_HY,'rb') as f:
+        df_cdx_hy = pickle.load(f)
+    return df_cdx_hy
 
 def write_cdx_stocks(cdx_func, filepath):
     df = cdx_func()
@@ -120,8 +133,11 @@ if __name__ == '__main__':
     # z = get_all_data()
 
     #write_cdx_stocks(get_cdx_ig, _STOCKS_IG)
-    get_ticker_df('AEP','2020-3-1','2020-10-31')
+    #get_ticker_df('AEP','2020-3-1','2020-10-31')
     #cdx_process()
     #cdxig = get_cdx_ig()
     #vix = get_vix()
+
+    #cdx_hy_process()
+    #cdxhy = get_cdx_hy()
     print('done')

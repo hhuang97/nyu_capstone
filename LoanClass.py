@@ -1,12 +1,18 @@
 
 from waterfall import CEA, CCC_ratio, carrying_value, sort_loan_mp, \
     sort_loan_rating, total_notional
+from data_parser import get_all_data, get_2018_data, get_2020_data, get_vix, get_cdx_ig
+import matplotlib.pyplot as plt
+import os
+import numpy as np
+from scipy.stats import norm
+from scipy.linalg import cholesky
 
 class loan(object):
     def __init__(self, issuer, spread, pv, rating, prepay=0.15,rec = 0.06):
         self.issuer = issuer #name
-        self.spread = spread/2. #from CDX sheet #assume semi-annual payment
-        self.semi_annual_pay = pv/10. #assuming all 5 years maturity for simplicity
+        self.spread = spread #from CDX sheet #assume semi-annual payment
+        self.semi_annual_pay = pv/20. #assuming all 5 years maturity for simplicity
         self.cv =  pv #carrying value
         self.pv = pv #par value, dollar amount
         # for our simulation purpose, just set all mp = pv,
@@ -20,10 +26,15 @@ class loan(object):
         self.default = False
         self.rec = rec
         self.prepay = prepay
+        self.default_t = np.inf
 
     def set_cv(self):
+        #TODO: need to deduct cv everytime loan paid
         # must run this function after creating a loan object
-        self.cv = self.pv if self.mp >= .8 else self.cv = self.pv * self.mp
+        if self.mp>=0.8:
+            self.cv =self.pv
+        else:
+            self.cv = self.pv*self.mp
         #else: #this is correct way, but too much complicated here.
             # if default, then just treat it as cv*rec
 
@@ -32,6 +43,9 @@ class loan(object):
 
     def set_spread(self,new_spread): #changing spread, won't be used.
         self.spread = new_spread
+
+    def set_default_time(self,time):
+        self.default_t = time
 
     def set_default(self):
         self.default = True
