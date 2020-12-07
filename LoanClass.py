@@ -50,8 +50,9 @@ class loan(object):
     def set_default(self):
         self.default = True
         self.semi_annual_pay = 0.
-        self.cv *= self.rec # if default, just set as the original * recovery rate.
+        self.cv = 0. # if default, just set as the original * recovery rate.
         self.pv = 0.  # easier to set pv as 0, then no interest paid after the loan defaults.
+        print(str(self.issuer) + ' defaults')
 
     # def set_rv(self,rv):
     #     self.rv = rv
@@ -71,7 +72,7 @@ class collateral(object):
         self.i_reserve = 0. # received interest later used by interest waterfall payment
 
     def build_reserve(self):
-        #semi-annual payment, assuming all loans are paid at exactly same time
+        #quarterly payment, assuming all loans are paid at exactly same time
         interest_pay = 0
         notional_pay = 0
         for loan in self.loans:
@@ -94,14 +95,14 @@ class collateral(object):
         # assume no downgrading happen for simplicity of the model
         pass
 
-    def default_adjust(self,default_events):
-        # default_events, dictionary, loan issuer: new default happen
+    def default_adjust(self,default_names):
+        # default_names, set, issuer.
         # readjust oc ratio, total notional set to recovery rate
         for loan in self.loans:
-            if loan.issuer in default_events.keys():
+            if loan.issuer in default_names:
+                self.p_reserve += loan.pv * loan.rec #potential recoveries
                 loan.set_default() # loans status change to default,
                                    # carrying value and par value are all scaled down.
-                self.p_reserve += loan.cv #potential recoveries
         # adjust carrying value.
 
     def set_ccc_ratio(self):

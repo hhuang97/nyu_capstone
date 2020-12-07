@@ -8,18 +8,19 @@ from CLOtracheClass import clotranche, clo
 from LoanClass import loan, collateral
 from waterfall import CEA, CCC_ratio, carrying_value, sort_loan_mp, \
     sort_loan_rating, total_notional, oc_ratio
+from collateral_default import default_rate, default_indicators,equity_cov
 
 import math
 from CDX_IG import cdx_ig_names, cdx_hy_names
 
-#TODO:  simulate loan collateral; simulate tranche; simulate clo;
-# - (if data are unknown) assign rating to each loan, sort loans w.r.t their spread
-# - start with 4 tranches, AAA,AA,A,equity:
+#  simulate loan collateral; simulate tranche; simulate clo;
+# - (if data are unknown) assign rating to each loan, sort loans w.r.t their spread DONE
+#  - start with 4 tranches, AAA,AA,A,equity:  DONE
 # ----- https://www.stout.com/en/insights/article/primer-valuation-clo-equity-financial-reporting
 # ----- https://services.sbcera.org/sirepub/cache/2/retkovizcy4dcex344yjp345/8537612062020023548742.PDF
-# use Gaussian Copula to simulate default times for each loan, one path
+# use Gaussian Copula to simulate default times for each loan, one path Done
 
-#TODO: function that builds interest/principal reserves, assumption (mini clo)
+# function that builds interest/principal reserves, assumption (mini clo)
 # - for simplicity, we'll assume the legal maturity is 5yrs
 # - reinvestment period ends after 2 years,
 # i.e., build reserve for 2 yrs before amortization period
@@ -48,7 +49,7 @@ def assign_rating_notional(df, total_notional=total_n, ccc_ratio = 7.5/100.):
     return ratings, loans_pvs
 
 def assign_loan_spread(df,avg_libor = avg_libor_spread):
-    df.sort_values(by = 'Spread (bp)', ascending = False)
+    df = df.sort_values(by = 'Spread (bp)', ascending = False)
     n = len(df.index)
     loan_libor_spreads = df['Spread (bp)']/sum(df['Spread (bp)']) *(n*avg_libor)
     return loan_libor_spreads
@@ -59,7 +60,7 @@ def libor_spreads(spreads): # maybe just assume constant for now
 
 
 def create_loan_collateral(df):
-    df.sort_values(by ='Spread (bp)',ascending=False) # from lowest to highest
+    df = df.sort_values(by='Spread (bp)',ascending=False) # from lowest to highest
     ratings,pvs = assign_rating_notional(df)
     libor_spreads  = assign_loan_spread(df)
     loans = np.array([loan(df.index[i],libor_spreads[i],pvs[i],ratings[i]) \
@@ -68,28 +69,73 @@ def create_loan_collateral(df):
     # default simulator?
     return loans
 
-def create_tranches(i=4):
+def create_tranches(i,tranche_cps):
     if i==4: #AAA,AA,BBB,Equity
         # % of capital, 32
         aaa,aa = clotranche('AAA',32*10**6),clotranche('AA',7.7*10**6)
-        bbb,equity = clotranche('BBB',6.05*10**6),clotranche('Equity',4.25*10**6)
+        bbb,equity = clotranche('A',6.05*10**6),clotranche('Equity',4.25*10**6)
         tranches = np.array([aaa,aa,bbb,equity])
-        floaters = [0.118,0.235,0.601,0.]
+        floaters = [0.0118,0.0235,0.0601,0.]
         for i in range(4):
             tranches[i].set_cp(floaters[i])
         return tranches
 
 #self,tranches, loans, oc_benchmark, maturity = 5.,payperiod = 1./4):
 
-def create_clo():
+def create_clo(i=4,tranche_cps=[0.0118,0.0235,0.0601,0.]):
     df = get_cdx_hy()
     collaterals = collateral(create_loan_collateral(df))
-    tranches = create_tranches()
-    miniclo = clo(tranches,collaterals,np.array([1.2,1.07,1.03]))
+    tranches = create_tranches(i,tranche_cps) #1.02 for AAA and AA, 1.07 for A
+    miniclo = clo(tranches,collaterals,np.array([1.2,1.07]))
     return miniclo
+
+
+def gaussian_copula_di(clo):
+    df_hy = get_cdx_hy()
+    df_hy = df_hy.sort_values(by='Spread (bp)', ascending=False)
+    n = len(df_hy.index)
+    di = default_indicators(np.eye(n),df_hy,df = False)
+    i=0
+    for loan in clo.collateral.loans:
+        loan.default_t = di[i]
+        i+=1
+    return clo
+
+
+
+def reinvestment_period(clo,yr=2.):
+    '''
+    :param yr: the length of reinvestment period.
+    assume all loans have quarterly payment.
+    '''
+    while clo.age <=yr:
+        clo.default_flag() #check which loans default
+        clo.collateral.build_reserve() #collect interest payment and
+        clo.pay_clo_interest()
+    return clo
+
+def amortization_period(clo,mat=5.):
+    while clo.age <mat:
+        print(clo.age)
+        clo.default_flag()
+        clo.collateral.build_reserve()
+        clo.pay_clo_interest()
+        clo.pay_clo_principal()
+    return clo
+
+def life_cycle(clo,yr = 2., mat =5.):
+    clo = reinvestment_period(clo)
+    return amortization_period(clo)
+
+
 
 if __name__ == '__main__':
     clo01 = create_clo()
+    clo01 = gaussian_copula_di(clo01) # default_time added
+    clofinal = life_cycle(clo01)
+    clofinal.callclo()
+    equity_earned = clofinal.equity_yield()
+
 
 
 

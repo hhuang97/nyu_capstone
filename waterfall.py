@@ -22,7 +22,7 @@ from scipy.linalg import cholesky
 #TODO: simulation of collateral composition of loans issued by components under CDX.
 
 def carrying_value(loan):
-    if loan.defualt == False:
+    if loan.default == False:
         if loan.mp >= .8:
             loan.cv = loan.pv
         else:
@@ -33,7 +33,8 @@ def carrying_value(loan):
 def sort_loan_mp(loans):
     def myFunc(e):
         return e.mp
-    return loans.sort(key=myFunc) #from lowerest to highest
+    loans.sort(key=myFunc) #from lowerest to highest
+    return loans
 
 def sort_loan_rating(loans):
     ccc = np.array([loan for loan in loans if 'C' in loan.rating])
@@ -48,19 +49,20 @@ def CCC_ratio(loans):
     ccc = np.array([loan for loan in loans if 'C' in loan.rating])
     return total_notional(ccc)/total_notional(loans)
 
-def CEA(loans,benchmark = 0.07 ):
+def CEA(loans,benchmark = 0.075 ):
     '''
     :param loans: array of the entire loan collateral objects
     '''
     ccc_r = CCC_ratio(loans)
-    cea=0.
-    if ccc_r > 0.07:
-        ccc= sort_loan_mp(np.array([loan for loan in loans if 'C' in loan.rating]))
-        benchmark = total_notional(loans)*0.07
+    cea = 0.
+    if ccc_r > benchmark:
+        ccc = sort_loan_mp([loan for loan in loans if 'C' in loan.rating])
+        benchmark = total_notional(loans)*benchmark
         ccc_pool,i = 0.,0
         while ccc_pool < benchmark:
-            cea += (loans[i].mp-loans[i].cv/100.) * (loans[i].par)
-            ccc_pool += loans[i].par
+            cea += (ccc[i].mp-ccc[i].cv/ccc[i].pv) * (ccc[i].pv)
+            ccc_pool += loans[i].pv
+            i+=1
     return cea
 
 #TODO: array of liabilities objects, attributes:
@@ -69,7 +71,7 @@ def CEA(loans,benchmark = 0.07 ):
        # unpaid_n: unpaid notional
        # paid_i: paid interest
 
-def oc_ratio(loans,liabilities):
+def oc_ratio(collateral,liabilities):
     '''
     :param loans: array of loan objects, with attribute rating, market value
                   carrying value,
@@ -77,7 +79,8 @@ def oc_ratio(loans,liabilities):
                         AAA,AA,A,BBB,BB,B, then equity
     :return: array of OC ratios for testing on each tranche.
     '''
-    adjusted_cv = np.sum(list(map(carrying_value,loans))) - CEA(loans)
+    loans = collateral.loans
+    adjusted_cv = np.sum(list(map(lambda x: x.cv,loans))) - CEA(loans) + collateral.p_reserve
     unpaid_ns = np.array([i.unpaid_n for i in liabilities])
     unpaid_ns_paripassu = np.cumsum(unpaid_ns[:-1]) #excluding equity
     return adjusted_cv/unpaid_ns_paripassu, unpaid_ns_paripassu
