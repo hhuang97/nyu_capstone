@@ -75,14 +75,13 @@ def create_tranches(i,tranche_cps):
         aaa,aa = clotranche('AAA',32*10**6),clotranche('AA',7.7*10**6)
         bbb,equity = clotranche('A',6.05*10**6),clotranche('Equity',4.25*10**6)
         tranches = np.array([aaa,aa,bbb,equity])
-        floaters = [0.0118,0.0235,0.0601,0.]
         for i in range(4):
-            tranches[i].set_cp(floaters[i])
+            tranches[i].set_cp(tranche_cps[i])
         return tranches
 
 #self,tranches, loans, oc_benchmark, maturity = 5.,payperiod = 1./4):
 
-def create_clo(i=4,tranche_cps=[0.0118,0.0235,0.0601,0.]):
+def create_clo(i=4,tranche_cps=[0.0218,0.0335,0.0601,0.]):
     df = get_cdx_hy()
     collaterals = collateral(create_loan_collateral(df))
     tranches = create_tranches(i,tranche_cps) #1.02 for AAA and AA, 1.07 for A
@@ -110,13 +109,12 @@ def reinvestment_period(clo,yr=2.):
     '''
     while clo.age <=yr:
         clo.default_flag() #check which loans default
-        clo.collateral.build_reserve() #collect interest payment and
+        clo.collateral.build_reserve() #collect interest payment
         clo.pay_clo_interest()
     return clo
 
 def amortization_period(clo,mat=5.):
-    while clo.age <mat:
-        print(clo.age)
+    while clo.age <= mat:
         clo.default_flag()
         clo.collateral.build_reserve()
         clo.pay_clo_interest()

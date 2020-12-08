@@ -37,27 +37,49 @@ class clo(object):
         self.payperiod = payperiod # assume semi-annual payment
         self.age = 0.
         self.ocbar = oc_benchmark #raio between asset and liability, if lower than the bench
+        self.default_events = {}
+        self.default_pv = 0.
 
     def default_flag(self):
         loans = self.collateral.loans
-        default_names = set(loan for loan in loans if loan.default_t <= self.age)
+        default_names = set()
+        for loan in loans:
+            if (loan.default_t <= self.age) and (loan.issuer not in self.default_events.keys()):
+                default_amount = loan.pv * (1 - loan.rec)
+                self.default_events[loan.issuer] = (loan.default_t,default_amount)
+                print(loan.issuer + ' defaults at year {}:'.format(loan.default_t) + str(default_amount))
+                self.default_pv += default_amount
+                default_names.add(loan.issuer)
         self.collateral.default_adjust(default_names)
+
+    def report(self):
+        cloinfo = 'age:{};'.format(self.age)
+        equity_interest = 'equity investor receives interest payment {}'.format(self.tranches[-1].paid_i)
+        equity_principal = 'And receive extra notional {}'.format(self.collateral.p_reserve-self.tranches[-1].unpaid_n)
+
+        print(cloinfo)
+        print('PnL for all tranches')
+        for tranche in self.tranches[:-1]:
+            print('{}: unpaid notional: {}; received interest: {}'.\
+                  format(tranche.trclass,tranche.unpaid_n,tranche.paid_i))
+        print('Equity tranche earns ', self.equity_yield())
+        print(equity_interest)
+        print(equity_principal)
+        print('-------------------------------')
+        print('Default Events with total default amount {}:'.format(self.default_pv))
+        print(self.default_events)
 
     def callclo(self):
         #pay back all principal
-        final_reserve = self.collateral.p_reserve + self.collateral.i_reserve
+        final_reserve = self.collateral.p_reserve
         n = len(self.tranches)
         for i in range(n-1):
             if final_reserve > 0 :
                 k = min(final_reserve,self.tranches[i].unpaid_n)
+                self.tranches[i].pay_notional(k)
                 final_reserve -= k
-
-        cloinfo = 'age:{};'.format(self.age)
-        equity_interest = 'equity investor receives interest payment {}'.format(self.tranches[-1].paid_i)
-        equity_principal =  'and receive extra principal {}'.format(final_reserve-self.tranches[-1].unpaid_n)
-        print(cloinfo)
-        print(equity_interest)
-        print(equity_principal)
+        self.collateral.p_reserve = final_reserve
+        self.report()
 
     def equity_yield(self):
         return self.tranches[-1].paid_i - self.tranches[-1].unpaid_n + self.collateral.p_reserve
@@ -67,21 +89,19 @@ class clo(object):
         # use received interest to pay down the interest waterfall
         self.age+= self.payperiod
         test_results, unpaid_paripassu_p = oc_ratio(self.collateral,self.tranches)#check oc ratio test.
-
         i=0
         #check if have enough cash reserve from loan collateral
         #check if the senior coverage test is in compliance
-        while (self.collateral.i_reserve >0) and (i <(len(self.tranches)-1)):
+        while (self.collateral.i_reserve >0) and (i <len(self.tranches)):
             # for the most senior tranche AAA, we don't need to check oc test
             scheduled_interest = self.tranches[i].unpaid_n * self.tranches[i].cp
-
-            if i>1 and test_results[i-2] < self.ocbar[i-2]:
+            if ((i>1) and (test_results[i-2] < self.ocbar[i-2])):
                 print('! Breach OC test on tranche ' + str(self.tranches[i-1].trclass))
                 j = 0 #starting from AAA
-                required_principal_payment =  unpaid_paripassu_p[i-1] - \
-                    test_results[i-1]*unpaid_paripassu_p[i-1]/self.ocbar[i-1]
+                required_principal_payment =  unpaid_paripassu_p[i-2] - \
+                    test_results[i-2]*unpaid_paripassu_p[i-2]/self.ocbar[i-2]
 
-                while (required_principal_payment >0) and (required_principal_payment <= self.loans.i_reserve):
+                while (required_principal_payment >0) and (required_principal_payment <= self.collateral.i_reserve):
                     if j == i:
                         break
                     else: #be able to pass the test

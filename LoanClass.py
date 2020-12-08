@@ -52,7 +52,6 @@ class loan(object):
         self.semi_annual_pay = 0.
         self.cv = 0. # if default, just set as the original * recovery rate.
         self.pv = 0.  # easier to set pv as 0, then no interest paid after the loan defaults.
-        print(str(self.issuer) + ' defaults')
 
     # def set_rv(self,rv):
     #     self.rv = rv

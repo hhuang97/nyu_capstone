@@ -47,7 +47,10 @@ def total_notional(loans):
 
 def CCC_ratio(loans):
     ccc = np.array([loan for loan in loans if 'C' in loan.rating])
-    return total_notional(ccc)/total_notional(loans)
+    if total_notional(loans) != 0:
+        return total_notional(ccc)/total_notional(loans)
+    else:
+        return 1
 
 def CEA(loans,benchmark = 0.075 ):
     '''
@@ -63,6 +66,8 @@ def CEA(loans,benchmark = 0.075 ):
             cea += (ccc[i].mp-ccc[i].cv/ccc[i].pv) * (ccc[i].pv)
             ccc_pool += loans[i].pv
             i+=1
+    # if cea !=0.:
+    #     print(cea)
     return cea
 
 #TODO: array of liabilities objects, attributes:
