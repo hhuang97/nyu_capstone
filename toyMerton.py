@@ -26,16 +26,18 @@ from CDX_IG import cdx_ig_names, cdx_hy_names
 # i.e., build reserve for 2 yrs before amortization period
 # - equity investor doesn't call the clo. add a call function to clo object. done
 
-#TODO: simulate time series for market price from
+#TODO: simulate time series for market price from - later
 
 
 #TODO: Merton's model,
+
 
 #self, issuer, spread, pv, rating, prepay=0.15,rec = 0.06
 
 total_n = 5.*10**7
 avg_libor_spread = 320. * 10**(-4)
 libor =0.25/100.
+equity_notional = 4.25 * 10**6
 
 
 # For simulation purpose
@@ -66,10 +68,10 @@ def create_loan_collateral(df):
     loans = np.array([loan(df.index[i],libor_spreads[i],pvs[i],ratings[i]) \
                       for i in range(len(df.index))])
 
-    # default simulator?
     return loans
 
 def create_tranches(i,tranche_cps):
+    #don't need to change it now
     if i==4: #AAA,AA,BBB,Equity
         # % of capital, 32
         aaa,aa = clotranche('AAA',32*10**6),clotranche('AA',7.7*10**6)
@@ -81,7 +83,8 @@ def create_tranches(i,tranche_cps):
 
 #self,tranches, loans, oc_benchmark, maturity = 5.,payperiod = 1./4):
 
-def create_clo(i=4,tranche_cps=[0.0218,0.0335,0.0601,0.]):
+def create_clo(i=4,tranche_cps=[0.0118,0.0225,0.0601,0.]):
+    # tranche_cps are the parameters. we are looking for.
     df = get_cdx_hy()
     collaterals = collateral(create_loan_collateral(df))
     tranches = create_tranches(i,tranche_cps) #1.02 for AAA and AA, 1.07 for A
@@ -90,6 +93,7 @@ def create_clo(i=4,tranche_cps=[0.0218,0.0335,0.0601,0.]):
 
 
 def gaussian_copula_di(clo):
+    # don't need to change it.
     df_hy = get_cdx_hy()
     df_hy = df_hy.sort_values(by='Spread (bp)', ascending=False)
     n = len(df_hy.index)
@@ -100,39 +104,126 @@ def gaussian_copula_di(clo):
         i+=1
     return clo
 
+def tranche_debt(clo):
+    for loan in clo.collateral.loans:
+        loan.default_t = np.inf
+    clo = life_cycle(clo)
+    debts  = np.array([tranche.note*12+tranche.paid_i for tranche in clo.tranches])
+    print(debts)
+    return debts
 
-
-def reinvestment_period(clo,yr=2.):
+def reinvestment_period(clo,yr=2.,AssetProcess= False):
     '''
     :param yr: the length of reinvestment period.
     assume all loans have quarterly payment.
     '''
+    # sum D/A #sum dD/A
+    assetlist =[]
+    DAlist =[]
+    dDAlist =[]
+
     while clo.age <=yr:
         clo.default_flag() #check which loans default
         clo.collateral.build_reserve() #collect interest payment
+        if AssetProcess == True:
+            total_asset = clo.collateral.i_reserve+clo.collateral.p_reserve
+            assetlist1 = total_asset *np.ones(len(clo.tranches)-1)
         clo.pay_clo_interest()
-    return clo
+        if AssetProcess == True:
+            for i in range(1,len(clo.tranches)-1):
+                assetlist1[i] = assetlist1[i-1] - clo.tranches[i-1].currD
+                Dlist = [tr.currD for tr in clo.tranches[:-1]]
+                dDlist = [tr.currD - tr.prevD for tr in clo.tranches[:-1]]
+            assetlist += list(assetlist1)
+            DAlist += [[0]+ [np.sum(Dlist[:j])/assetlist1[j] for j in range(1,len(clo.tranches)-1)]]
+            dDAlist += [[0]+ [np.sum(dDlist[:j])/assetlist1[j] for j in range(1,len(clo.tranches)-1)]]
 
-def amortization_period(clo,mat=5.):
+    if AssetProcess == True:
+        return DAlist,dDAlist, clo
+    else:
+        return clo
+
+def amortization_period(clo,mat=5., AssetProcess=False):
+    assetlist =[]
+    DAlist =[]
+    dDAlist =[]
     while clo.age <= mat:
         clo.default_flag()
         clo.collateral.build_reserve()
+        if AssetProcess == True:
+            total_asset = clo.collateral.i_reserve+clo.collateral.p_reserve
+            assetlist1 = total_asset *np.ones(len(clo.tranches)-1)
         clo.pay_clo_interest()
         clo.pay_clo_principal()
-    return clo
+        if AssetProcess == True:
+            for i in range(1,len(clo.tranches)-1):
+                print(assetlist1)
+                assetlist1[i] = assetlist1[i-1] - clo.tranches[i-1].currD
+                Dlist = [tr.currD for tr in clo.tranches[:-1]]
+                dDlist = [tr.currD - tr.prevD for tr in clo.tranches[:-1]]
+                if assetlist1[i]<=0.:
+                    Dlist[i],dDlist[i] = 0.,0.
+            print(Dlist,assetlist1)
+            assetlist += list(assetlist1)
+            DAlist += [[0]+ [np.sum(Dlist[:j])/assetlist1[j] for j in range(1,len(clo.tranches)-1)]]
+            dDAlist += [[0]+ [np.sum(dDlist[:j])/assetlist1[j] for j in range(1,len(clo.tranches)-1)]]
+    if AssetProcess == True:
+        return DAlist, dDAlist, clo
+    else:
+        return clo
 
 def life_cycle(clo,yr = 2., mat =5.):
-    clo = reinvestment_period(clo)
-    return amortization_period(clo)
+    dalist,ddalist,clo = reinvestment_period(clo,AssetProcess=True)
+    dalist2,ddalist2,clo = amortization_period(clo,AssetProcess=True)
+    return dalist+dalist2,ddalist+ddalist2,clo
+
+
+#TODO: Merton's model.
+
+
+def clo_merton_input(rated_cp, equity_cp):
+    '''
+    :param rated_cp: list of cps for rated tranches, (variables)
+    :param equity_cp: equity cp.
+    the input is A(0)
+    '''
+    clo = create_clo(tranche_cps=rated_cp+[equity_cp])
+    clo = gaussian_copula_di(clo)
+    clo = life_cycle(clo)
+
+def flagTF(TF):
+    if TF == True:
+        return 1
+    else:
+        return 0
+
+def prob_default_mc(n,cps=[0.5,0.5,0.5,0.]):
+    clo = create_clo(tranche_cps=cps)
+    Dfs = tranche_debt(clo)
+    default_prob = np.zeros(4)
+    for i in range(n):
+        clo1 = gaussian_copula_di(clo)
+        clo1 = life_cycle(clo1)
+        assets = np.array([clo1.tranche_asset(j) for j in range(4)])
+        print(assets)
+        tf = assets<Dfs-1.
+        print(tf)
+        default_prob = np.array([default_prob[i] + flagTF(tf[i]) for i in range(4)])
+    default_prob /= n
+    return default_prob
+# failed model.
+
 
 
 
 if __name__ == '__main__':
     clo01 = create_clo()
     clo01 = gaussian_copula_di(clo01) # default_time added
-    clofinal = life_cycle(clo01)
+    dalist, ddalist, clofinal = life_cycle(clo01)
     clofinal.callclo()
     equity_earned = clofinal.equity_yield()
+   #  Dfs = tranche_debt(clo01) works
+    #prob_default_mc(3)
 
 
 

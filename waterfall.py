@@ -70,12 +70,6 @@ def CEA(loans,benchmark = 0.075 ):
     #     print(cea)
     return cea
 
-#TODO: array of liabilities objects, attributes:
-       # cp: coupon
-       # tranche
-       # unpaid_n: unpaid notional
-       # paid_i: paid interest
-
 def oc_ratio(collateral,liabilities):
     '''
     :param loans: array of loan objects, with attribute rating, market value

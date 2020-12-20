@@ -15,13 +15,20 @@ class clotranche(object):
         self.unpaid_n = unpaid_notional
         self.paid_i = 0.
         self.cp = 0. #this should be the value we need to solve.
+        # For assessing A_j's stochastic process.
+        self.currD = 0.
+        self.prevD= 0.
 
     def pay_interest(self,interest_in):
+        self.prevD = self.currD #new
+        self.currD = 0. #new
         self.paid_i+=interest_in
+        self.currD += interest_in #new
 
     def pay_notional(self, principal_in):
         if self.unpaid_n - principal_in >=0.:
             self.unpaid_n -= principal_in
+            self.currD += principal_in #new
         else:
             self.unpaid_n = 0.
 
@@ -39,7 +46,6 @@ class clo(object):
         self.ocbar = oc_benchmark #raio between asset and liability, if lower than the bench
         self.default_events = {}
         self.default_pv = 0.
-
     def default_flag(self):
         loans = self.collateral.loans
         default_names = set()
@@ -83,6 +89,12 @@ class clo(object):
 
     def equity_yield(self):
         return self.tranches[-1].paid_i - self.tranches[-1].unpaid_n + self.collateral.p_reserve
+
+    def tranche_asset(self,j): # A_j,
+        asset = self.tranches[j].note *12. - self.tranches[j].unpaid_n + self.tranches[j].paid_i
+        for tranche in self.tranches[j+1:]:
+            asset += tranche.note *12. - tranche.unpaid_n + tranche.paid_i
+        return asset
 
     def pay_clo_interest(self):
         # one-time payment, run this function every 6 month,

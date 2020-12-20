@@ -9,7 +9,7 @@ from scipy.stats import norm
 from scipy.linalg import cholesky
 
 class loan(object):
-    def __init__(self, issuer, spread, pv, rating, prepay=0.15,rec = 0.06):
+    def __init__(self, issuer, spread, pv, rating, prepay=0.015,rec = 0.06):
         self.issuer = issuer #name
         self.spread = spread #from CDX sheet #assume semi-annual payment
         self.semi_annual_pay = pv/20. #assuming all 5 years maturity for simplicity
@@ -69,6 +69,7 @@ class collateral(object):
         self.total_notional = total_notional(loans)
         self.p_reserve = 0. # principal paid by loans and potential recoveries
         self.i_reserve = 0. # received interest later used by interest waterfall payment
+        self.currA = 0.
 
     def build_reserve(self):
         #quarterly payment, assuming all loans are paid at exactly same time
@@ -87,6 +88,8 @@ class collateral(object):
                     loan.set_cv()
         self.p_reserve += notional_pay
         self.i_reserve += interest_pay
+        self.currA += notional_pay + interest_pay
+
 
     def loan_downgrading(self,dg_file):
         # downgrading_file, dictionary, loan issuer: new rating
